@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Gerador interativo de UMA instância Subset Sum (CSV), com aleatoriedade de solvabilidade:
+- Pede ALVO (centavos ou reais BR "68674,67")
+- Pede N (tamanho da pool)
+- Pede caminho COMPLETO do .csv
+- Sem perguntas adicionais: decide aleatoriamente (50/50) se a instância será
+  SOLVABLE (com solução garantida) ou UNSAT (impossível).
+
+CSV gerado (compatível com verificador):
+  name,pool,target
+  custom_(solvable|unsat)_N,"[...]",TARGET
+"""
+
+import re
+import csv
+import random
+from pathlib import Path
+from typing import List, Tuple
+
+# ----------------------------
+# Entrada do usuário / parsing
+# ----------------------------
+
+def parse_target_to_centavos(user_input: str) -> int:
+    """
+    Aceita:
+      - CENTAVOS: "6867467"  -> 6.867.467 centavos = R$ 68.674,67
+      - REAIS BR: "68674,67" ou "R$ 68.674,67"
+    """
+    s = user_input.strip()
+    if re.fullmatch(r"\d+", s):
+        v = int(s)
+        if v <= 0:
+            raise ValueError("O alvo deve ser positivo.")
+        return v
+    s = re.sub(r"(?i)r\$\s*", "", s)
+    s = s.replace(".", "").replace(",", ".")
+    try:
+        valor = float(s)
+        cent = int(round(valor * 100))
+        if cent <= 0:
+            raise ValueError("O alvo deve ser positivo.")
+        return cent
+    except Exception:
+        raise ValueError("Alvo inválido. Use CENTAVOS (ex.: 6867467) ou REAIS (ex.: 68674,67).")
+
+def ask_positive_int(prompt: str, min_value: int = 1) -> int:
+    while True:
+        s = input(prompt).strip()
+        if not s.isdigit():
+            print("Por favor, digite um inteiro não negativo.")
+            continue
+        v = int(s)
+        if v < min_value:
+            print(f"Por favor, informe um valor >= {min_value}.")
+            continue
+        return v
+
+def ask_output_path(prompt: str) -> Path:
+    while True:
+        p = input(prompt).strip().strip('"').strip("'")
+        if not p:
+            print("Caminho vazio. Tente novamente.")
+            continue
+        out = Path(p)
+        if out.suffix.lower() != ".csv":
+            print("O arquivo deve ter extensão .csv. Ex.: C:/pasta/instances.csv")
+            continue
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            return out
+        except Exception as e:
+            print(f"Não foi possível preparar a pasta: {e}. Tente outro caminho.")
+
+# ----------------------------
+# Construções de instâncias
+# ----------------------------
+
+def triangular_sum(k: int) -> int:
+    return k * (k + 1) // 2
+
+def build_pool_solvable(target: int, n: int, rng: random.Random) -> Tuple[List[int], int, List[int]]:
+    """Gera N valores distintos e garante um subconjunto que soma target."""
+    if target <= 0 or n < 2:
+        raise ValueError("target>0 e n>=2 (solvable).")
+    # escolhe k com sum(1..k) < target e k <= n-1
+    k = min(n - 1, 1)
+    while k + 1 <= n - 1 and triangular_sum(k + 1) < target:
+        k += 1
+    # ajusta k para last>k
+    while True:
+        s = triangular_sum(k)
+        last = target - s
+        if last > k and last > 0:
+            break
+        k -= 1
+        if k < 1:
+            # fallback para alvos muito pequenos
+            subset = [1] if target == 1 else [1, target - 1]
+            used = set(subset)
+            pool = list(subset)
+            x = max(subset) + 1
+            while len(pool) < n:
+                if x not in used:
+                    pool.append(x); used.add(x)
+                x += 1
+            rng.shuffle(pool)
+            return pool, target, subset
+    subset = list(range(1, k + 1)) + [last]
+    used = set(subset)
+    pool = list(subset)
+    x = last + 1
+    while len(pool) < n:
+        if x not in used:
+            pool.append(x); used.add(x)
+        x += 1
+    rng.shuffle(pool)
+    return pool, target, subset
+
+def build_pool_unsat_mod(target: int, n: int, rng: random.Random) -> Tuple[List[int], int]:
+    """
+    Gera N valores em que NENHUM subconjunto soma target.
+    Estratégia: escolhe m (2..20) com target % m != 0; gera todos valores múltiplos de m.
+    Qualquer soma é múltipla de m, logo nunca atinge target.
+    """
+    if target <= 0 or n < 1:
+        raise ValueError("target>0 e n>=1 (unsat).")
+    candidates = list(range(2, 21))
+    rng.shuffle(candidates)
+    m = None
+    for cand in candidates:
+        if target % cand != 0:
+            m = cand
+            break
+    pool: List[int] = []
+    used = set()
+    if m is not None:
+        base = m
+        while len(pool) < n:
+            base += m
+            if base in used: 
+                continue
+            used.add(base)
+            pool.append(base)
+        rng.shuffle(pool)
+        return pool, target
+    # fallback raríssimo: soma total < target
+    s = 0; v = 1
+    while len(pool) < n and s + v < target:
+        pool.append(v); s += v; v += 1
+    big = 10**9
+    while len(pool) < n:
+        pool.append(big); big += 1
+    rng.shuffle(pool)
+    return pool, target
+
+# ----------------------------
+# Execução principal
+# ----------------------------
+
+def main():
+    print("=== Gerador de Instância Subset Sum (CSV) — Modo Interativo (Mix) ===\n")
+
+    # 1) Alvo
+    while True:
+        try:
+            alvo_str = input("Alvo — CENTAVOS (ex.: 6867467) OU REAIS (ex.: 68674,67): ")
+            target = parse_target_to_centavos(alvo_str)
+            break
+        except ValueError as e:
+            print(e)
+
+    # 2) Número de transações
+    n = ask_positive_int("Número de transações a gerar (ex.: 30000): ", min_value=2)
+
+    # 3) Onde salvar
+    print("\nInforme o caminho COMPLETO do arquivo .csv de saída.")
+    print("Ex.: C:/Users/seu_usuario/Documentos/instances.csv")
+    out_path = ask_output_path("Salvar em: ")
+
+    # 4) Decide aleatoriamente se será solvável ou inviável (50/50)
+    rng = random.Random()  # semente do sistema
+    solvable = (rng.random() < 0.5)
+
+    if solvable:
+        pool, T, subset = build_pool_solvable(target, n, rng)
+        tag = "solvable"
+    else:
+        pool, T = build_pool_unsat_mod(target, n, rng)
+        subset = []
+        tag = "unsat"
+
+    # 5) Escreve CSV
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["name", "pool", "target"])
+        pool_str = "[" + ",".join(str(x) for x in pool) + "]"
+        w.writerow([f"custom_{tag}_{n}", pool_str, str(T)])
+
+    # 6) Resumo
+    print("\n=== Concluído ===")
+    print("Arquivo salvo em:", out_path.resolve())
+    print("Tamanho da pool:", len(pool))
+    print("Distintos?      ", len(set(pool)) == len(pool))
+    print("Tipo            :", "SOLVABLE (tem solução)" if solvable else "UNSAT (sem solução)")
+    if solvable:
+        # Mostra uma amostra do subconjunto garantido (apenas informativo)
+        print("Exemplo de subset garantido:",
+              subset if len(subset) <= 12 else (subset[:10] + ["...", subset[-1]]))
+    print("Alvo (centavos) :", T)
+    print("Alvo (R$)       :", f"R$ {T/100:.2f}".replace(".", ","))
+
+if __name__ == "__main__":
+    main()

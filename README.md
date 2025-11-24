@@ -23,6 +23,7 @@
 - [Estrutura sugerida do repositório](#-estrutura-sugerida-do-repositório)
 - [Dúvidas frequentes (FAQ)](#-dúvidas-frequentes-faq)
 - [Licença](#-licença)
+- [LINK DO YOUTUBE](#-link-do-youtube)
 
 ---
 
@@ -180,3 +181,7 @@ flowchart LR
 Defina a licença que preferir (ex.: MIT ou Apache-2.0).
 
 <p align="center"> <i>Contribuições, issues e PRs são bem-vindos! 🚀</i> </p> ```
+
+▶️ LINK DO YOUTUBE
+
+<https://youtu.be/_6205XkHYQI/>

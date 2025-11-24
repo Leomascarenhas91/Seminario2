@@ -184,4 +184,4 @@ Defina a licença que preferir (ex.: MIT ou Apache-2.0).
 
 ▶️ LINK DO YOUTUBE
 
-<https://youtu.be/_6205XkHYQI/>
+<https://www.youtube.com/watch?v=_6205XkHYQI>

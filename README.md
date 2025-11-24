@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  Gere instâncias realistas de transações (em centavos) e verifique, via Programação Dinâmica, se existe um subconjunto que soma exatamente um alvo 💰.
+  Gera instâncias realistas de transações (em centavos) e verifica, via Programação Dinâmica, se existe um subconjunto que soma exatamente um alvo 💰.
 </p>
 
 ---
@@ -153,9 +153,8 @@ Dica: usar alvos moderados (até alguns milhões de centavos) e N na casa de cen
 ├─ make_instances_interativo_mix.py      # gerador (uma instância; solvável/insucesso aleatório)
 ├─ subset_sum_dp_verifica_csv.py         # verificador (DP + reconstrução do subconjunto)
 ├─ README.md
-└─ data/
-   ├─ transacoes_exemplo.csv             # (opcional) exemplos prontos
-   └─ ...
+    └─ LINK DO VIDEO NO YOUTUBE
+├─ PDF dos slides
 
 ❓ Dúvidas frequentes (FAQ)
 
